@@ -3,7 +3,7 @@ syntax = "proto3";
 
 package protos;
 
-option go_package = "github.com/tech-with-moss/go-usermgmt-grpc;go_usermgmt_grpc";
+option go_package = "github.com/felipe-aguirre/tarea_sist_distribuido-grpc;tarea_sist_distribuido";
 
 service ManejoComunicacion {
   rpc Comunicar (MessageRequest) returns (MessageReply) {}

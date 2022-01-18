@@ -1,4 +1,4 @@
-module github.com/tech-with-moss/go-usermgmt-grpc
+module github.com/felipe-aguirre/tarea_sist_distribuido
 
 go 1.16
 
