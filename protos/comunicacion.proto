@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+
+package protos;
+
+option go_package = "github.com/tech-with-moss/go-usermgmt-grpc;go_usermgmt_grpc";
+
+service ManejoComunicacion {
+  rpc Comunicar (MessageRequest) returns (MessageReply) {}
+}
+
+
+message MessageRequest {
+  string request = 1;
+}
+
+message MessageReply {
+  string reply = 1;
+}
