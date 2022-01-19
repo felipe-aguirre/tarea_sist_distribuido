@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	pb "github.com/felipe-aguirre/tarea_sist_distribuido/protos"
@@ -28,9 +32,7 @@ const (
 
 func main() {
 
-	// Consola
-	// Codigo que va a Servidor fulcrum
-	/*
+
 		exit := false
 		loop := true
 		for exit != loop {
@@ -39,132 +41,19 @@ func main() {
 			text, _ := reader.ReadString('\n')
 			text = strings.Replace(text, "\r\n", "", -1)
 			respuesta := strings.Split(text, " ")
-
-			// Caso 1: AddCity
-			if strings.Compare("AddCity", respuesta[0]) == 0 {
-
-				// Configuracion de linea a escribir
-				nombre_planeta := respuesta[1]
-				nombre_ciudad := respuesta[2]
-				linea_a_escribir := nombre_planeta + " " + nombre_ciudad
-
-				if len(respuesta) > 3 {
-					// Se quiere agregar el nuevo valor
-					linea_a_escribir = linea_a_escribir + " " + respuesta[3]
-
-				} else {
-					linea_a_escribir = linea_a_escribir + " " + "0"
-				}
-
-				// Open File
-				f, err := os.Open("../registro_planetario/" + nombre_planeta + ".txt")
-				// En caso de que no exista, se crea y se agrega la linea necesaria
+			if (respuesta[0] == "AddCity" || respuesta[0] == "UpdateName" || respuesta[0] == "UpdateNumber" || respuesta[0] == "DeleteCity"){
+				conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
 				if err != nil {
-					f.Close()
-					f, _ := os.OpenFile("../registro_planetario/"+nombre_planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
-					_, err = f.Write([]byte(linea_a_escribir + "\n"))
-					fmt.Println("Se agrego la linea: ", linea_a_escribir)
-					if err != nil {
-						log.Fatal(err)
-					}
-					f.Close()
-				} else {
-					// El archivo si existe, se verifica primero si ya existe la ciudad
-					scanner := bufio.NewScanner(f)
-					NoExisteLinea := true
-					for scanner.Scan() {
-						linea_leida := strings.Split(scanner.Text(), " ")
-						// Si la linea existe
-						if strings.Compare(nombre_ciudad, linea_leida[1]) == 0 {
-							fmt.Println("Ya existe la ciudad que se intenta agregar")
-							NoExisteLinea = false
-							break
-						}
-					}
-					f.Close()
-					if NoExisteLinea {
-						f, _ := os.OpenFile("../registro_planetario/"+nombre_planeta+".txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
-						_, err = f.Write([]byte(linea_a_escribir + "\n"))
-						fmt.Println("Se agrego la linea: ", linea_a_escribir)
-						if err != nil {
-							log.Fatal(err)
-						}
-					}
+					log.Fatalf("did not connect: %v", err)
 				}
+				c := pb.NewManejoComunicacionClient(conn)
 
-			} else if strings.Compare("UpdateName", respuesta[0]) == 0 {
-				fmt.Println("Se ejecuto updateName")
-				nombre_planeta := respuesta[1]
-				nombre_ciudad := respuesta[2]
-				nuevo_valor := respuesta[3]
-				f, _ := os.Open("../registro_planetario/" + nombre_planeta + ".txt")
-				// Leer el archivo y pasarlo a array
-				scanner := bufio.NewScanner(f)
-				var textoCompleto []string
-				for scanner.Scan() {
-					linea_a_escribir := (scanner.Text())
-					linea_leida := strings.Split(scanner.Text(), " ")
-					// Si la linea existe
-					if strings.Compare(nombre_ciudad, linea_leida[1]) == 0 {
-						linea_a_escribir = nombre_planeta + " " + nuevo_valor + " " + linea_leida[2]
-					}
-					textoCompleto = append(textoCompleto, linea_a_escribir)
-				}
-				f.Close()
-				file, _ := os.OpenFile("../registro_planetario/"+nombre_planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
-				for _, elem := range textoCompleto {
-					file.Write([]byte(elem + "\n"))
-				}
-				file.Close()
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				r, err := c.Comunicar(ctx, &pb.MessageRequest{Request: text})
+				log.Printf(`Mensaje recibido del Broker: %s`, r.GetReply())
+				conn.Close()
 
-			} else if strings.Compare("UpdateNumber", respuesta[0]) == 0 {
-				fmt.Println("Se ejecuto updateName")
-				nombre_planeta := respuesta[1]
-				nombre_ciudad := respuesta[2]
-				nuevo_valor := respuesta[3]
-				f, _ := os.Open("../registro_planetario/" + nombre_planeta + ".txt")
-				// Leer el archivo y pasarlo a array
-				scanner := bufio.NewScanner(f)
-				var textoCompleto []string
-				for scanner.Scan() {
-					linea_a_escribir := (scanner.Text())
-					linea_leida := strings.Split(scanner.Text(), " ")
-					// Si la linea existe
-					if strings.Compare(nombre_ciudad, linea_leida[1]) == 0 {
-						linea_a_escribir = nombre_planeta + " " + nombre_ciudad + " " + nuevo_valor
-					}
-					textoCompleto = append(textoCompleto, linea_a_escribir)
-				}
-				f.Close()
-				file, _ := os.OpenFile("../registro_planetario/"+nombre_planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
-				for _, elem := range textoCompleto {
-					file.Write([]byte(elem + "\n"))
-				}
-				file.Close()
-
-			} else if strings.Compare("DeleteCity", respuesta[0]) == 0 {
-				fmt.Println("Se ejecuto updateName")
-				nombre_planeta := respuesta[1]
-				nombre_ciudad := respuesta[2]
-				f, _ := os.Open("../registro_planetario/" + nombre_planeta + ".txt")
-				// Leer el archivo y pasarlo a array
-				scanner := bufio.NewScanner(f)
-				var textoCompleto []string
-				for scanner.Scan() {
-					linea_a_escribir := (scanner.Text())
-					linea_leida := strings.Split(scanner.Text(), " ")
-					// Si la linea existe
-					if strings.Compare(nombre_ciudad, linea_leida[1]) != 0 {
-						textoCompleto = append(textoCompleto, linea_a_escribir)
-					}
-				}
-				f.Close()
-				os.Remove("../registro_planetario/" + nombre_planeta + ".txt")
-				file, _ := os.OpenFile("../registro_planetario/"+nombre_planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
-				for _, elem := range textoCompleto {
-					file.Write([]byte(elem + "\n"))
-				}
-				file.Close()
 			} else {
 				if strings.Compare("exit", text) == 0 {
 					exit = true
@@ -173,28 +62,7 @@ func main() {
 				}
 			}
 		}
-	*/
-	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	c := pb.NewUserManagementClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	comando := "Prueba de comando 1"
-	r, err := c.CreateNewUser(ctx, &pb.NewUser{Name: name, Age: age})
-	for name, age := range new_users {
-		r, err := c.CreateNewUser(ctx, &pb.NewUser{Name: name, Age: age})
-		if err != nil {
-			log.Fatalf("could not create user: %v", err)
-		}
-		log.Printf(`User Details:
-			NAME: %s
-			AGE: %d
-			ID: %d`, r.GetName(), r.GetAge(), r.GetId())
-
-	}
+	
+	
 
 }
