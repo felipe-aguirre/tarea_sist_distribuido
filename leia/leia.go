@@ -38,11 +38,11 @@ func main() {
 		loop := true
 		for exit != loop {
 			reader := bufio.NewReader(os.Stdin)
-			fmt.Print("Ahoska Tano > ")
+			fmt.Print("Leia > ")
 			text, _ := reader.ReadString('\n')
 			text = strings.Replace(text, "\r\n", "", -1)
 			respuesta := strings.Split(text, " ")
-			if (respuesta[0] == "AddCity" || respuesta[0] == "UpdateName" || respuesta[0] == "UpdateNumber" || respuesta[0] == "DeleteCity"){
+			if (respuesta[0] == "GetNumberRebelds"){
 				// Conexión a Broker
 				conn, err := grpc.Dial(BrokerAddress, grpc.WithInsecure(), grpc.WithBlock())
 				if err != nil {
@@ -52,30 +52,20 @@ func main() {
 
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 				defer cancel()
-				r, err := c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: "Ahoska Tano"})
+				r, _ := c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: "Leia"})
 				log.Printf(`Mensaje recibido del Broker: %s`, r.GetReply())
 				log.Printf("Contactando al servidor %s con el comando '%s'", r.GetReply(), text)
-				ServerIP = r.GetReply()
+				respuesta := r.GetReply()
+				linea_leida := strings.Split(respuesta, ",")
+				vector = linea_leida[0]
+				log.Printf("Vector recibido: %s", vector)
 				conn.Close()
 				
-
-				// Conexión al Servidor Fulcrum
-				conn, err = grpc.Dial(ServerIP, grpc.WithInsecure(), grpc.WithBlock())
-				if err != nil {
-					log.Fatalf("did not connect: %v", err)
-				}
-				c = pb.NewManejoComunicacionClient(conn)
-
-				ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-				r, err = c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: "Ahoska Tano"})
-				log.Printf(`Mensaje recibido del Servidor: %s`, r.GetReply())
-				defer cancel()
-
 			} else {
 				if strings.Compare("exit", text) == 0 {
 					exit = true
 				} else {
-					fmt.Println("Comando erroneo, intente con AddCity, UpdateName, UpdateNumber o DeleteCity")
+					fmt.Println("Comando erroneo, intente con GetNumberRebelds")
 				}
 			}
 		}

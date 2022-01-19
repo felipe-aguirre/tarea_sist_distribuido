@@ -13,6 +13,7 @@ service ManejoComunicacion {
 message MessageRequest {
   string request = 1;
   string autor = 2;
+  string reloj = 3;
 }
 
 message MessageReply {

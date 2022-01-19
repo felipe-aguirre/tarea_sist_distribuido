@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	pb "github.com/felipe-aguirre/tarea_sist_distribuido/protos"
@@ -15,8 +16,10 @@ import (
 
 const (
 	port = ":50051"
+	indiceServidor = 0
 )
-var vector = []int{0,0,0}
+
+var vector = map[string]string{}
 
 type ManejoComunicacionServer struct {
 	pb.UnimplementedManejoComunicacionServer
@@ -24,10 +27,36 @@ type ManejoComunicacionServer struct {
 // Funcion ReceiveMessage debe tener el mismo nombre en informantes
 func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.MessageRequest) (*pb.MessageReply, error) {
 	log.Printf("Se recibió: %v", in.GetRequest())
-
 	respuesta := strings.Split(in.GetRequest(), " ")
-	if strings.Compare("AddCity", respuesta[0]) == 0 {
 
+
+	//Caso solicitud de Leia (Desde el broker)
+	if in.GetAutor() == "Broker" {
+		// Leer planeta y ciudad
+		log.Println("Se ejecuto GetNumberRebelds")
+		nombre_planeta := respuesta[1]
+		nombre_ciudad := respuesta[2]
+		cantidad_ciudad := "0"
+		f, _ := os.Open("planeta_" + nombre_planeta + ".txt")
+		// Leer el archivo y pasarlo a array
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			linea_leida := strings.Split(scanner.Text(), " ")
+			// Si la linea existe
+			if strings.Compare(nombre_ciudad, linea_leida[1]) == 0 {
+				cantidad_ciudad = linea_leida[2]
+			}
+		}
+		f.Close()
+		vectorReturn:="["+strings.Trim(strings.Join(strings.Fields(fmt.Sprint(vector)), " "), "[]")+"]"
+		return &pb.MessageReply{Reply: "[" + vectorReturn + "]" + "," + cantidad_ciudad}, nil
+
+
+
+	}
+
+	if strings.Compare("AddCity", respuesta[0]) == 0 {
+		log.Println("Se ejecuto AddCity")
 		// Configuracion de linea a escribir
 		nombre_planeta := respuesta[1]
 		nombre_ciudad := respuesta[2]
@@ -46,7 +75,7 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 		f, err := os.Open("planeta_" + nombre_planeta + ".txt")
 		// En caso de que no exista, se crea y se agrega la linea necesaria
 		if err != nil {
-			log.Println("No se encontró archivo de planeta, creando uno nuevo")
+			log.Printf("No se encontró archivo de planeta, creando uno nuevo")
 			f.Close()
 			f, err := os.OpenFile("planeta_" + nombre_planeta + ".txt", os.O_CREATE|os.O_WRONLY, 0660)
 			if err != nil {
@@ -61,6 +90,27 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 			logger, _ := os.OpenFile("planeta_"+nombre_planeta+".log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
 			logger.Write([]byte(registro_log + "\n"))
 			logger.Close()
+			
+
+			//Add de vector
+			if _, ok := vector[nombre_planeta]; ok {
+				// Vector si existe en el planeta
+				vectorRespuesta := strings.Split(vector[nombre_planeta], " ")
+		
+				x, _ := strconv.Atoi(vectorRespuesta[indiceServidor])
+				vectorRespuesta[indiceServidor] = strconv.Itoa(x + 1)
+				vector[nombre_planeta] = strings.Join(vectorRespuesta, " ")
+			} else {
+				// vector no existe, se crea nuevo con valor 1 0 0 | 0 1 0 | 0 0 1
+				if indiceServidor == 0 {
+					vector[nombre_planeta] = "1 0 0"
+				}else if indiceServidor == 1{
+					vector[nombre_planeta] = "0 1 0"
+				}else {
+					vector[nombre_planeta] = "0 0 1"
+				}
+			}
+	
 		} else {
 			// El archivo si existe, se verifica primero si ya existe la ciudad
 			scanner := bufio.NewScanner(f)
@@ -86,6 +136,25 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 				logger, _ := os.OpenFile("planeta_"+nombre_planeta+".log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
 				logger.Write([]byte(registro_log + "\n"))
 				logger.Close()
+
+				//Add de vector
+				if _, ok := vector[nombre_planeta]; ok {
+					// Vector si existe en el planeta
+					vectorRespuesta := strings.Split(vector[nombre_planeta], " ")
+			
+					x, _ := strconv.Atoi(vectorRespuesta[indiceServidor])
+					vectorRespuesta[indiceServidor] = strconv.Itoa(x + 1)
+					vector[nombre_planeta] = strings.Join(vectorRespuesta, " ")
+				} else {
+					// vector no existe, se crea nuevo con valor 1 0 0 | 0 1 0 | 0 0 1
+					if indiceServidor == 0 {
+						vector[nombre_planeta] = "1 0 0"
+					}else if indiceServidor == 1{
+						vector[nombre_planeta] = "0 1 0"
+					}else {
+						vector[nombre_planeta] = "0 0 1"
+					}
+				}
 			}
 		}
 
@@ -95,28 +164,67 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 		nombre_planeta := respuesta[1]
 		nombre_ciudad := respuesta[2]
 		nuevo_valor := respuesta[3]
-		f, _ := os.Open("planeta_" + nombre_planeta + ".txt")
+
+		//Revisión si valor nuevo es una ciudad existente. De ser así se cancela
+		//la operación
+		ciudadExiste := false
+		fileCheck, _ := os.Open("planeta_" + nombre_planeta + ".txt")
 		// Leer el archivo y pasarlo a array
-		scanner := bufio.NewScanner(f)
-		var textoCompleto []string
-		for scanner.Scan() {
-			linea_a_escribir := (scanner.Text())
-			linea_leida := strings.Split(scanner.Text(), " ")
+		scannerCheck := bufio.NewScanner(fileCheck)
+		for scannerCheck.Scan() {
+			linea_leida := strings.Split(scannerCheck.Text(), " ")
 			// Si la linea existe
-			if strings.Compare(nombre_ciudad, linea_leida[1]) == 0 {
-				linea_a_escribir = nombre_planeta + " " + nuevo_valor + " " + linea_leida[2]
+			if strings.Compare(nuevo_valor, linea_leida[1]) == 0 {
+				ciudadExiste = true
 			}
-			textoCompleto = append(textoCompleto, linea_a_escribir)
 		}
-		f.Close()
-		file, _ := os.OpenFile("planeta_"+nombre_planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
-		for _, elem := range textoCompleto {
-			file.Write([]byte(elem + "\n"))
+		fileCheck.Close()
+		
+		if (!ciudadExiste) {
+			f, _ := os.Open("planeta_" + nombre_planeta + ".txt")
+			// Leer el archivo y pasarlo a array
+			scanner := bufio.NewScanner(f)
+			var textoCompleto []string
+			for scanner.Scan() {
+				linea_a_escribir := (scanner.Text())
+				linea_leida := strings.Split(scanner.Text(), " ")
+				// Si la linea existe
+				if strings.Compare(nombre_ciudad, linea_leida[1]) == 0 {
+					linea_a_escribir = nombre_planeta + " " + nuevo_valor + " " + linea_leida[2]
+				}
+				textoCompleto = append(textoCompleto, linea_a_escribir)
+			}
+			f.Close()
+			file, _ := os.OpenFile("planeta_"+nombre_planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
+			for _, elem := range textoCompleto {
+				file.Write([]byte(elem + "\n"))
+			}
+			file.Close()
+			logger, _ := os.OpenFile("planeta_"+nombre_planeta+".log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
+			logger.Write([]byte(in.GetRequest() + "\n"))
+			logger.Close()
+
+			//Add de vector
+			if _, ok := vector[nombre_planeta]; ok {
+				// Vector si existe en el planeta
+				vectorRespuesta := strings.Split(vector[nombre_planeta], " ")
+		
+				x, _ := strconv.Atoi(vectorRespuesta[indiceServidor])
+				vectorRespuesta[indiceServidor] = strconv.Itoa(x + 1)
+				vector[nombre_planeta] = strings.Join(vectorRespuesta, " ")
+			} else {
+				// vector no existe, se crea nuevo con valor 1 0 0 | 0 1 0 | 0 0 1
+				if indiceServidor == 0 {
+					vector[nombre_planeta] = "1 0 0"
+				}else if indiceServidor == 1{
+					vector[nombre_planeta] = "0 1 0"
+				}else {
+					vector[nombre_planeta] = "0 0 1"
+				}
+			}
+
 		}
-		file.Close()
-		logger, _ := os.OpenFile("planeta_"+nombre_planeta+".log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
-		logger.Write([]byte(in.GetRequest() + "\n"))
-		logger.Close()
+		
 
 	} else if strings.Compare("UpdateNumber", respuesta[0]) == 0 {
 		log.Println("Se ejecuto UpdateNumber")
@@ -145,6 +253,25 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 		logger, _ := os.OpenFile("planeta_"+nombre_planeta+".log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
 		logger.Write([]byte(in.GetRequest() + "\n"))
 		logger.Close()
+
+		//Add de vector
+		if _, ok := vector[nombre_planeta]; ok {
+			// Vector si existe en el planeta
+			vectorRespuesta := strings.Split(vector[nombre_planeta], " ")
+	
+			x, _ := strconv.Atoi(vectorRespuesta[indiceServidor])
+			vectorRespuesta[indiceServidor] = strconv.Itoa(x + 1)
+			vector[nombre_planeta] = strings.Join(vectorRespuesta, " ")
+		} else {
+			// vector no existe, se crea nuevo con valor 1 0 0 | 0 1 0 | 0 0 1
+			if indiceServidor == 0 {
+				vector[nombre_planeta] = "1 0 0"
+			}else if indiceServidor == 1{
+				vector[nombre_planeta] = "0 1 0"
+			}else {
+				vector[nombre_planeta] = "0 0 1"
+			}
+		}
 
 	} else if strings.Compare("DeleteCity", respuesta[0]) == 0 {
 		log.Println("Se ejecuto DeleteCity")
@@ -175,14 +302,36 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 		logger, _ := os.OpenFile("planeta_"+nombre_planeta+".log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
 		logger.Write([]byte(in.GetRequest() + "\n"))
 		logger.Close()
+
+		//Add de vector
+		if _, ok := vector[nombre_planeta]; ok {
+			// Vector si existe en el planeta
+			vectorRespuesta := strings.Split(vector[nombre_planeta], " ")
+	
+			x, _ := strconv.Atoi(vectorRespuesta[indiceServidor])
+			vectorRespuesta[indiceServidor] = strconv.Itoa(x + 1)
+			vector[nombre_planeta] = strings.Join(vectorRespuesta, " ")
+		} else {
+			// vector no existe, se crea nuevo con valor 1 0 0 | 0 1 0 | 0 0 1
+			if indiceServidor == 0 {
+				vector[nombre_planeta] = "1 0 0"
+			}else if indiceServidor == 1{
+				vector[nombre_planeta] = "0 1 0"
+			}else {
+				vector[nombre_planeta] = "0 0 1"
+			}
+		}
 	} 
 	
-
-
-	vector[0]++ 
-	vectorReturn:="["+strings.Trim(strings.Join(strings.Fields(fmt.Sprint(vector)), " "), "[]")+"]"
-
-	return &pb.MessageReply{Reply: vectorReturn}, nil
+	vectorViejo := strings.Split(vector[respuesta[1]], " ")
+	x, _ := strconv.Atoi(vectorViejo[0])
+	vectorViejo[0] = strconv.Itoa(x - 1)
+	vectorViejoStr := strings.Join(vectorViejo, " ")
+	log.Printf("Vector nuevo: [%v] > [%v]",vectorViejoStr, vector[respuesta[1]])
+	 
+	
+	
+	return &pb.MessageReply{Reply: vector[respuesta[1]]}, nil
 }
 
 func main() {

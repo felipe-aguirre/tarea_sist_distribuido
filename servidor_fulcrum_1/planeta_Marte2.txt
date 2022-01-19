@@ -1,0 +1,2 @@
+Marte2 Ciudad1 1000
+Marte2 Ciudad2 1000

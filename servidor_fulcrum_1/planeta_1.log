@@ -1,6 +1,0 @@
-AddCity 1 1
-AddCity 1 2
-DeleteCity 1 1
-UpdateNumber 1 2 20
-UpdateName 1 2 1
-AddCity 1 3 0
