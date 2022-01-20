@@ -724,7 +724,7 @@ func ejecutarCoordinacion() {
 		}
 		c = pb.NewManejoComunicacionClient(conn)
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		respBroker, _ := c.Comunicar(ctx, &pb.MessageRequest{Request: "Eliminar", Autor: "Fulcrum"})
+		respBroker, _ := c.Comunicar(ctx, &pb.MessageRequest{Request: "Eliminar", Autor: "FulcrumDELETE"})
 		log.Printf("Respuesta broker: %v", respBroker.GetReply())
 		cancel()
 

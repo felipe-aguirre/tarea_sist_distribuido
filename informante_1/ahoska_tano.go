@@ -52,7 +52,8 @@ func main() {
 
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 				defer cancel()
-				r, err := c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: "Ahoska Tano"})
+
+				r, err := c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: "Ahoska Tano", Ip : ServerIP,Reloj: vector[respuesta[1]]})
 				log.Printf(`Mensaje recibido del Broker: %s`, r.GetReply())
 				log.Printf("Contactando al servidor %s con el comando '%s'", r.GetReply(), text)
 				ServerIP = r.GetReply()
