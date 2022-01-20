@@ -599,16 +599,8 @@ func ejecutarCoordinacion() {
 		for _, planeta := range listaPlanetas {
 			os.Remove("planeta_" + planeta + ".log")
 		}
-		// Ordenar a los servidores Fulcrum2 y 3 acatar los nuevos cambios
-		//Fulcrum 2
-		log.Printf("Enviando nueva data a Fulcrum 2")
-		conn, err = grpc.Dial("localhost:50052", grpc.WithInsecure(), grpc.WithBlock())
-		if err != nil {
-			log.Fatalf("did not connect: %v", err)
-		}
-		c = pb.NewManejoComunicacionClient(conn)
-
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+		
+		// Preparando DATA para enviar a fulcrum 2 y 3
 
 		// Paso 1: Recolectar lista planetas
 		listaPlanetasSTR := strings.Join(listaPlanetas, ";")
@@ -636,9 +628,18 @@ func ejecutarCoordinacion() {
 		listaVectoresSTR := strings.Join(listaVectores, ";")
 
 
+		// Ordenar a los servidores Fulcrum2 y 3 acatar los nuevos cambios
+		//Fulcrum 2
+		log.Printf("Enviando nueva data a Fulcrum 2")
+		conn, err = grpc.Dial("localhost:50052", grpc.WithInsecure(), grpc.WithBlock())
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
+		}
+		c = pb.NewManejoComunicacionClient(conn)
 
-		r, _ = c.Reestructurar(ctx, &pb.ReestructuracionRequest{Planetas: listaPlanetasSTR, Vectores: listaVectoresSTR, Registrotxt: listaTxtSTR})
-		log.Printf("Se recibió respuesta de Fulcrum 3")
+		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+		rReestructuracion, _ := c.Reestructurar(ctx, &pb.ReestructuracionRequest{Planetas: listaPlanetasSTR, Vectores: listaVectoresSTR, Registrotxt: listaTxtSTR})
+		log.Printf("Se recibió respuesta de Fulcrum 2: %v", rReestructuracion.getReply())
 		cancel()
 
 	}
