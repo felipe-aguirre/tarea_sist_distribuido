@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -25,8 +27,80 @@ type ManejoComunicacionServer struct {
 	pb.UnimplementedManejoComunicacionServer
 }
 
+func deleter() {
+	dirname := "." + string(filepath.Separator)
+      d, err := os.Open(dirname)
+      if err != nil {
+          fmt.Println(err)
+          os.Exit(1)
+      }
+      
+      files, err := d.Readdir(-1)
+      if err != nil {
+          fmt.Println(err)
+          os.Exit(1)
+      }
+			
+      for _, file := range files {
 
-func (s *ManejoComunicacionServer) Coordinar(ctx context.Context, in *pb.CoordinacionRequest) (*pb.CoordinacionReply, error) {
+          if file.Mode().IsRegular() {
+              if filepath.Ext(file.Name()) == ".txt" {
+                os.Remove(file.Name())
+              }
+							if filepath.Ext(file.Name()) == ".log" {
+                os.Remove(file.Name())
+              }
+          }
+      }
+			d.Close()
+}
+func (s *ManejoComunicacionServer) Reestructurar(ctx context.Context, 
+	in *pb.ReestructuracionRequest) (*pb.ReestructuracionReply, error) {
+		log.Printf("Se recibió nueva data desde Fulcrum 1:")
+		planetas :=in.GetPlanetas()
+		texts := in.GetRegistrotxt()
+		vectores := in.GetVectores()
+		log.Printf("Planetas: %v",planetas)
+		log.Printf("Logs: %v",texts)
+		log.Printf("Vectores: %v",vectores)
+		log.Printf("Borrando data actual")
+		deleter()
+		//time.Sleep(1000 * time.Millisecond)
+		log.Printf("Data Borrada")
+		listaPlanetasRecibida := strings.Split(planetas, ";")
+		if len(listaPlanetasRecibida) == 1 {
+			if strings.Compare(listaPlanetasRecibida[0], "") == 0{
+				listaPlanetasRecibida = []string{}
+			}
+		}
+		listaTexts := strings.Split(texts, ";")
+		if len(listaTexts) == 1 {
+			if strings.Compare(listaTexts[0], "") == 0{
+				listaTexts = []string{}
+			}
+		}
+		listaVectores := strings.Split(vectores, ";")
+		if len(listaVectores) == 1 {
+			if strings.Compare(listaVectores[0], "") == 0{
+				listaVectores = []string{}
+			}
+		}
+		vector = map[string]string{}
+		for index, planeta := range listaPlanetasRecibida {
+			listaTextsPlaneta := strings.Split(listaTexts[index], ",")
+			file, _ := os.OpenFile("planeta_"+planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
+			for _, elem := range listaTextsPlaneta {
+				file.Write([]byte(elem + "\n"))
+			}
+			file.Close()
+			vector[planeta] = listaVectores[index]
+		}
+		
+
+	return &pb.ReestructuracionReply{Reply: "Recibido"}, nil
+}
+func (s *ManejoComunicacionServer) Coordinar(ctx context.Context, 
+	in *pb.CoordinacionRequest) (*pb.CoordinacionReply, error) {
 		// Planetas del servidor X
 		// Ejemplo: "planeta1,planeta2,planetae"
 
@@ -52,6 +126,7 @@ func (s *ManejoComunicacionServer) Coordinar(ctx context.Context, in *pb.Coordin
 		}
 		logsDelPlanetaSTR := strings.Join(logsDelPlaneta, ",")
 		listaLogs = append(listaLogs, logsDelPlanetaSTR)
+		fileCheck.Close()
 	}
 	listaLogsSTR := strings.Join(listaLogs, ";")
 	
@@ -386,6 +461,7 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 
 
 func main() {
+	deleter()
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)

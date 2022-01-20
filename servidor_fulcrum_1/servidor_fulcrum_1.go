@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,8 +17,10 @@ import (
 )
 
 const (
+	BrokerAddress = "localhost:50050"
 	port = ":50051"
 	indiceServidor = 0
+	TIMER = 10
 )
 
 var vector = map[string]string{}
@@ -30,7 +34,33 @@ func max(a, b int) int {
 	}
 	return b
 }
+func deleter() {
+	dirname := "." + string(filepath.Separator)
+      d, err := os.Open(dirname)
+      if err != nil {
+          fmt.Println(err)
+          os.Exit(1)
+      }
+      defer d.Close()
 
+      files, err := d.Readdir(-1)
+      if err != nil {
+          fmt.Println(err)
+          os.Exit(1)
+      }
+			
+      for _, file := range files {
+
+          if file.Mode().IsRegular() {
+              if filepath.Ext(file.Name()) == ".txt" {
+                os.Remove(file.Name())
+              }
+							if filepath.Ext(file.Name()) == ".log" {
+                os.Remove(file.Name())
+              }
+          }
+      }
+}
 // Funcion ReceiveMessage debe tener el mismo nombre en informantes
 func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.MessageRequest) (*pb.MessageReply, error) {
 	log.Printf("Se recibió: %v", in.GetRequest())
@@ -356,8 +386,25 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 func aplicarCambiosRecibidos(planetas string, logs string, vectores string) {
 	log.Printf("Iniciando aplicación de cambios recibidos")
 	listaPlanetasRecibida := strings.Split(planetas, ";")
+	if len(listaPlanetasRecibida) == 1 {
+		if strings.Compare(listaPlanetasRecibida[0], "") == 0{
+			listaPlanetasRecibida = []string{}
+		}
+	}
 	listaLogs := strings.Split(logs, ";")
+	if len(listaLogs) == 1 {
+		if strings.Compare(listaLogs[0], "") == 0{
+			listaLogs = []string{}
+		}
+	}
 	listaVectores := strings.Split(vectores, ";")
+	if len(listaVectores) == 1 {
+		if strings.Compare(listaVectores[0], "") == 0{
+			listaVectores = []string{}
+		}
+	}
+	
+
 
 	for index, planeta := range listaPlanetasRecibida {
 		log.Printf("Edición de planeta: %v",planeta)
@@ -375,15 +422,24 @@ func aplicarCambiosRecibidos(planetas string, logs string, vectores string) {
 		// Archivo existe - continua a aplicación de log
 		
 		// Paso 2: Aplicar el log correspondiente al archivo
-		listaLogsPlaneta := strings.Split(listaLogs[index], ",")
+		if len(listaLogs) != 0 {
+			listaLogsPlaneta := strings.Split(listaLogs[index], ",")
 		for _, elem := range listaLogsPlaneta {
 			log.Printf("Linea de log: %v",elem)
 			logActual:= strings.Split(elem, ",")
+			
 			for _, comando := range logActual {
+				log.Printf("Log actual: %v",comando)
+				log.Printf("Largo del log: actual: %v\n",len(comando))
 				respuesta := strings.Split(comando, " ")
+				log.Printf("Largo del log: actual: %v\n",len(respuesta))
 				nombre_planeta := respuesta[1]
 				nombre_ciudad := respuesta[2]
-				nuevo_valor:= respuesta[3]
+				nuevo_valor:= ""
+				if len(respuesta) == 4 {
+					nuevo_valor= respuesta[3]
+				}
+				
 
 				//Caso AddCity
 				if strings.Compare("AddCity", respuesta[0]) == 0 {
@@ -497,6 +553,9 @@ func aplicarCambiosRecibidos(planetas string, logs string, vectores string) {
 			}
 		//Paso 3: Coordinar vectores dejando los valores más altos
 		}
+		}
+
+		
 		log.Printf("Revisión de vector para planeta: %v",planeta)
 		// listaVectores = [1 1 0; 1 0 1; 2 0 1  etc] ya separados como array de strings
 		// Comparar vector de fulcrum 1 con el entregado
@@ -538,7 +597,7 @@ func aplicarCambiosRecibidos(planetas string, logs string, vectores string) {
 	}
 }
 func ejecutarCoordinacion() {
-	for range time.Tick(time.Second * 5 * 2) {
+	for range time.Tick(time.Second * TIMER) {
 		log.Printf("Inicio de Merge")
 
 		// Solicitar archivos, se recibe listado de:
@@ -573,7 +632,7 @@ func ejecutarCoordinacion() {
 		aplicarCambiosRecibidos(planetaFulcrum2, logFulcrum2, vectorFulcrum2)
 
 		// Conexión a Fulcrum 3
-		
+		/*
 		log.Printf("Solicitando información a Fulcrum 3")
 		conn, err = grpc.Dial("localhost:50053", grpc.WithInsecure(), grpc.WithBlock())
 		if err != nil {
@@ -592,7 +651,8 @@ func ejecutarCoordinacion() {
 		log.Printf("Logs: %v", logFulcrum3)
 		log.Printf("Vectores: %v", vectorFulcrum3)
 		aplicarCambiosRecibidos(planetaFulcrum3, logFulcrum3, vectorFulcrum3)
-		
+		*/
+
 
 		// Borrar los logs del servidor fulcrum 1
 		log.Printf("Eliminando logs de Fulcrum 1")
@@ -639,13 +699,40 @@ func ejecutarCoordinacion() {
 
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 		rReestructuracion, _ := c.Reestructurar(ctx, &pb.ReestructuracionRequest{Planetas: listaPlanetasSTR, Vectores: listaVectoresSTR, Registrotxt: listaTxtSTR})
-		log.Printf("Se recibió respuesta de Fulcrum 2: %v", rReestructuracion.getReply())
+		log.Printf("Se recibió respuesta de Fulcrum 2: %v", rReestructuracion.GetReply())
+		cancel()
+
+		//Fulcrum 3
+		/*
+		log.Printf("Enviando nueva data a Fulcrum 2")
+		conn, err = grpc.Dial("localhost:50053", grpc.WithInsecure(), grpc.WithBlock())
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
+		}
+		c = pb.NewManejoComunicacionClient(conn)
+
+		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+		rReestructuracion, _ = c.Reestructurar(ctx, &pb.ReestructuracionRequest{Planetas: listaPlanetasSTR, Vectores: listaVectoresSTR, Registrotxt: listaTxtSTR})
+		log.Printf("Se recibió respuesta de Fulcrum 3: %v", rReestructuracion.GetReply())
+		cancel()
+		*/
+
+		// Avisarle al broker que reinicie las IPs
+		conn, err = grpc.Dial(BrokerAddress, grpc.WithInsecure(), grpc.WithBlock())
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
+		}
+		c = pb.NewManejoComunicacionClient(conn)
+		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+		respBroker, _ := c.Comunicar(ctx, &pb.MessageRequest{Request: "Eliminar", Autor: "Fulcrum"})
+		log.Printf("Respuesta broker: %v", respBroker.GetReply())
 		cancel()
 
 	}
 }
 
 func main() {
+	deleter()
 	go ejecutarCoordinacion()
 	lis, err := net.Listen("tcp", port)
 	if err != nil {

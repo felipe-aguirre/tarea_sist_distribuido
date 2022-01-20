@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"math/rand"
 	"net"
 	"time"
 
@@ -22,7 +23,8 @@ var person = map[string]string{
 	"Leia": "None",
 }
 
-
+var seed = rand.NewSource(44)
+var random = rand.New(seed)
 
 type ManejoComunicacionServer struct {
 	pb.UnimplementedManejoComunicacionServer
@@ -37,12 +39,15 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 
 	// Desactivar Plan A: Comentar desde Acá
 	// /*
-	var IP = person[in.GetAutor()]
-	if IP == "None"{
+	var IP = ""
+	if in.GetAutor()!= "Fulcrum" {
+		IP = person[in.GetAutor()]
+	if IP == "None" {
 		log.Printf("No hay IP guardada, se elige una aleatoria")
-		//aleatorio:= rand.Intn(3)
+		// Usar rand int (3) para iterar entre [0,1,2] los 3 servidores fulcrum
+		aleatorio:= random.Intn(2)
 		//Usar aleatorio = 0 mientras para probar con el servidor 1
-		aleatorio:=1
+	
 		IP = servidores[aleatorio]
 		person[in.GetAutor()] = IP
 		log.Printf("Se le ha asignado la IP %v al usuario %v - Retornando valor de IP", person[in.GetAutor()], in.GetAutor())
@@ -56,6 +61,16 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 	// Coordinar con los servidores fulcrum quien tiene un reloj de vector igual o más reciente
 	// que el que envía el informante/leia
 
+	}
+	
+	if in.GetAutor() == "Fulcrum" {
+		person = map[string]string{
+			"Ahoska Tano": "None",
+			"Almirante Thrawn": "None",
+			"Leia": "None",
+		}
+		IP = "IPs Eliminadas"
+	}
 	if in.GetAutor() == "Leia"{
 		// Conexión al Servidor Fulcrum
 		conn, err := grpc.Dial(IP, grpc.WithInsecure(), grpc.WithBlock())

@@ -9,6 +9,7 @@ service ManejoComunicacion {
   rpc Comunicar (MessageRequest) returns (MessageReply) {}
   rpc Coordinar (CoordinacionRequest) returns (CoordinacionReply) {}
   rpc Reestructurar (ReestructuracionRequest) returns (ReestructuracionReply){}
+  rpc ConsultarReloj (RelojRequest) returns (RelojReply){}
 }
 
 
@@ -45,5 +46,12 @@ message ReestructuracionRequest {
 }
 
 message ReestructuracionReply {
+  string reply = 1;
+}
+
+message RelojRequest {
+  string request = 1;
+}
+message RelojReply {
   string reply = 1;
 }

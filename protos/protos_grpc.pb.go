@@ -21,6 +21,7 @@ type ManejoComunicacionClient interface {
 	Comunicar(ctx context.Context, in *MessageRequest, opts ...grpc.CallOption) (*MessageReply, error)
 	Coordinar(ctx context.Context, in *CoordinacionRequest, opts ...grpc.CallOption) (*CoordinacionReply, error)
 	Reestructurar(ctx context.Context, in *ReestructuracionRequest, opts ...grpc.CallOption) (*ReestructuracionReply, error)
+	ConsultarReloj(ctx context.Context, in *RelojRequest, opts ...grpc.CallOption) (*RelojReply, error)
 }
 
 type manejoComunicacionClient struct {
@@ -58,6 +59,15 @@ func (c *manejoComunicacionClient) Reestructurar(ctx context.Context, in *Reestr
 	return out, nil
 }
 
+func (c *manejoComunicacionClient) ConsultarReloj(ctx context.Context, in *RelojRequest, opts ...grpc.CallOption) (*RelojReply, error) {
+	out := new(RelojReply)
+	err := c.cc.Invoke(ctx, "/protos.ManejoComunicacion/ConsultarReloj", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ManejoComunicacionServer is the server API for ManejoComunicacion service.
 // All implementations must embed UnimplementedManejoComunicacionServer
 // for forward compatibility
@@ -65,6 +75,7 @@ type ManejoComunicacionServer interface {
 	Comunicar(context.Context, *MessageRequest) (*MessageReply, error)
 	Coordinar(context.Context, *CoordinacionRequest) (*CoordinacionReply, error)
 	Reestructurar(context.Context, *ReestructuracionRequest) (*ReestructuracionReply, error)
+	ConsultarReloj(context.Context, *RelojRequest) (*RelojReply, error)
 	mustEmbedUnimplementedManejoComunicacionServer()
 }
 
@@ -80,6 +91,9 @@ func (UnimplementedManejoComunicacionServer) Coordinar(context.Context, *Coordin
 }
 func (UnimplementedManejoComunicacionServer) Reestructurar(context.Context, *ReestructuracionRequest) (*ReestructuracionReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Reestructurar not implemented")
+}
+func (UnimplementedManejoComunicacionServer) ConsultarReloj(context.Context, *RelojRequest) (*RelojReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ConsultarReloj not implemented")
 }
 func (UnimplementedManejoComunicacionServer) mustEmbedUnimplementedManejoComunicacionServer() {}
 
@@ -148,6 +162,24 @@ func _ManejoComunicacion_Reestructurar_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ManejoComunicacion_ConsultarReloj_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RelojRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManejoComunicacionServer).ConsultarReloj(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protos.ManejoComunicacion/ConsultarReloj",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManejoComunicacionServer).ConsultarReloj(ctx, req.(*RelojRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ManejoComunicacion_ServiceDesc is the grpc.ServiceDesc for ManejoComunicacion service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -166,6 +198,10 @@ var ManejoComunicacion_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Reestructurar",
 			Handler:    _ManejoComunicacion_Reestructurar_Handler,
+		},
+		{
+			MethodName: "ConsultarReloj",
+			Handler:    _ManejoComunicacion_ConsultarReloj_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
