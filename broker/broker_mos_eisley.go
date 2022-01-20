@@ -42,7 +42,7 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 		log.Printf("No hay IP guardada, se elige una aleatoria")
 		//aleatorio:= rand.Intn(3)
 		//Usar aleatorio = 0 mientras para probar con el servidor 1
-		aleatorio:=0
+		aleatorio:=1
 		IP = servidores[aleatorio]
 		person[in.GetAutor()] = IP
 		log.Printf("Se le ha asignado la IP %v al usuario %v - Retornando valor de IP", person[in.GetAutor()], in.GetAutor())
