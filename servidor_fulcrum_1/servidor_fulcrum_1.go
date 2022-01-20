@@ -607,9 +607,37 @@ func ejecutarCoordinacion() {
 			log.Fatalf("did not connect: %v", err)
 		}
 		c = pb.NewManejoComunicacionClient(conn)
-		
+
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		r, _ = c.Reestructurar(ctx, &pb.ReestructuracionRequest{Request: "Coordinemos"})
+
+		// Paso 1: Recolectar lista planetas
+		listaPlanetasSTR := strings.Join(listaPlanetas, ";")
+
+		// Paso 2: Obtener TXT de cada planeta
+		listaTxt := []string{}
+		for _, planeta := range listaPlanetas {
+			logsDelPlaneta := []string{}
+			fileCheck, _ := os.Open("planeta_" + planeta + ".txt")
+			// Leer el archivo y pasarlo a array
+			scannerCheck := bufio.NewScanner(fileCheck)
+			for scannerCheck.Scan() {
+				logsDelPlaneta = append(logsDelPlaneta,scannerCheck.Text())
+			}
+			logsDelPlanetaSTR := strings.Join(logsDelPlaneta, ",")
+			listaTxt = append(listaTxt, logsDelPlanetaSTR)
+		}
+		listaTxtSTR := strings.Join(listaTxt, ";")
+		
+		//Paso 3: Obtener los vectores de cada planeta
+		listaVectores := []string{}
+		for _, planeta := range listaPlanetas {
+			listaVectores = append(listaVectores, vector[planeta])
+		}
+		listaVectoresSTR := strings.Join(listaVectores, ";")
+
+
+
+		r, _ = c.Reestructurar(ctx, &pb.ReestructuracionRequest{Planetas: listaPlanetasSTR, Vectores: listaVectoresSTR, Registrotxt: listaTxtSTR})
 		log.Printf("Se recibió respuesta de Fulcrum 3")
 		cancel()
 

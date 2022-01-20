@@ -41,7 +41,7 @@ message CoordinacionReply {
 message ReestructuracionRequest {
   string planetas = 1;
   string vectores = 2;
-  string registroTxt = 3;
+  string registrotxt = 3;
 }
 
 message ReestructuracionReply {
