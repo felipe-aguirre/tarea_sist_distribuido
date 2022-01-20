@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -48,8 +47,15 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 			}
 		}
 		f.Close()
-		vectorReturn:="["+strings.Trim(strings.Join(strings.Fields(fmt.Sprint(vector)), " "), "[]")+"]"
-		return &pb.MessageReply{Reply: "[" + vectorReturn + "]" + "," + cantidad_ciudad}, nil
+		posibleRespuesta := ""
+ 		if _, ok := vector[nombre_planeta]; ok {
+			posibleRespuesta = vector[nombre_planeta]+ "," + cantidad_ciudad
+		}else{ 
+			posibleRespuesta = "0 0 0," + cantidad_ciudad
+		}
+		
+		log.Println("Respuesta: ",posibleRespuesta)
+		return &pb.MessageReply{Reply: posibleRespuesta}, nil
 
 
 
@@ -328,9 +334,7 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 	vectorViejo[0] = strconv.Itoa(x - 1)
 	vectorViejoStr := strings.Join(vectorViejo, " ")
 	log.Printf("Vector nuevo: [%v] > [%v]",vectorViejoStr, vector[respuesta[1]])
-	 
-	
-	
+
 	return &pb.MessageReply{Reply: vector[respuesta[1]]}, nil
 }
 

@@ -7,6 +7,8 @@ option go_package = "github.com/felipe-aguirre/tarea_sist_distribuido-grpc;tarea
 
 service ManejoComunicacion {
   rpc Comunicar (MessageRequest) returns (MessageReply) {}
+  rpc Coordinar (CoordinacionRequest) returns (CoordinacionReply) {}
+  rpc Reestructurar (ReestructuracionRequest) returns (ReestructuracionReply){}
 }
 
 
@@ -19,3 +21,23 @@ message MessageRequest {
 message MessageReply {
   string reply = 1;
 }
+
+// Se solicita a los servidores que envíen sus logs
+message CoordinacionRequest {
+  string request = 1;
+}
+// Envío de logs, uno por cada planeta
+// Formato:
+// {
+//  planeta1: [log1, log2,.. logn],
+//  planeta2: [...]
+// } 
+message CoordinacionReply {
+  string planetas = 1;
+  string logs = 2;
+  string vector = 3;
+}
+
+message ReestructuracionRequest {}
+
+message ReestructuracionReply {}

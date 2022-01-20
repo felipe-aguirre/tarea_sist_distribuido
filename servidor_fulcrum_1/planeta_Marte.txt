@@ -1,2 +1,4 @@
 Marte Ciudad2 1000
-Marte Ciudad1 1000
+Marte Ciudad1 1234
+Marte Vina 12345
+Marte VillaAlemana 193821

@@ -1,2 +1,5 @@
 AddCity Marte Ciudad2 1000
 AddCity Marte Ciudad1 1000
+AddCity Marte Vina 12345
+AddCity Marte Valpo 193821
+UpdateName Marte Valpo VillaAlemana

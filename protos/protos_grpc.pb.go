@@ -19,6 +19,8 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ManejoComunicacionClient interface {
 	Comunicar(ctx context.Context, in *MessageRequest, opts ...grpc.CallOption) (*MessageReply, error)
+	Coordinar(ctx context.Context, in *CoordinacionRequest, opts ...grpc.CallOption) (*CoordinacionReply, error)
+	Reestructurar(ctx context.Context, in *ReestructuracionRequest, opts ...grpc.CallOption) (*ReestructuracionReply, error)
 }
 
 type manejoComunicacionClient struct {
@@ -38,11 +40,31 @@ func (c *manejoComunicacionClient) Comunicar(ctx context.Context, in *MessageReq
 	return out, nil
 }
 
+func (c *manejoComunicacionClient) Coordinar(ctx context.Context, in *CoordinacionRequest, opts ...grpc.CallOption) (*CoordinacionReply, error) {
+	out := new(CoordinacionReply)
+	err := c.cc.Invoke(ctx, "/protos.ManejoComunicacion/Coordinar", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *manejoComunicacionClient) Reestructurar(ctx context.Context, in *ReestructuracionRequest, opts ...grpc.CallOption) (*ReestructuracionReply, error) {
+	out := new(ReestructuracionReply)
+	err := c.cc.Invoke(ctx, "/protos.ManejoComunicacion/Reestructurar", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ManejoComunicacionServer is the server API for ManejoComunicacion service.
 // All implementations must embed UnimplementedManejoComunicacionServer
 // for forward compatibility
 type ManejoComunicacionServer interface {
 	Comunicar(context.Context, *MessageRequest) (*MessageReply, error)
+	Coordinar(context.Context, *CoordinacionRequest) (*CoordinacionReply, error)
+	Reestructurar(context.Context, *ReestructuracionRequest) (*ReestructuracionReply, error)
 	mustEmbedUnimplementedManejoComunicacionServer()
 }
 
@@ -52,6 +74,12 @@ type UnimplementedManejoComunicacionServer struct {
 
 func (UnimplementedManejoComunicacionServer) Comunicar(context.Context, *MessageRequest) (*MessageReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Comunicar not implemented")
+}
+func (UnimplementedManejoComunicacionServer) Coordinar(context.Context, *CoordinacionRequest) (*CoordinacionReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Coordinar not implemented")
+}
+func (UnimplementedManejoComunicacionServer) Reestructurar(context.Context, *ReestructuracionRequest) (*ReestructuracionReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Reestructurar not implemented")
 }
 func (UnimplementedManejoComunicacionServer) mustEmbedUnimplementedManejoComunicacionServer() {}
 
@@ -84,6 +112,42 @@ func _ManejoComunicacion_Comunicar_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ManejoComunicacion_Coordinar_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CoordinacionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManejoComunicacionServer).Coordinar(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protos.ManejoComunicacion/Coordinar",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManejoComunicacionServer).Coordinar(ctx, req.(*CoordinacionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ManejoComunicacion_Reestructurar_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReestructuracionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManejoComunicacionServer).Reestructurar(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protos.ManejoComunicacion/Reestructurar",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManejoComunicacionServer).Reestructurar(ctx, req.(*ReestructuracionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ManejoComunicacion_ServiceDesc is the grpc.ServiceDesc for ManejoComunicacion service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -94,6 +158,14 @@ var ManejoComunicacion_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Comunicar",
 			Handler:    _ManejoComunicacion_Comunicar_Handler,
+		},
+		{
+			MethodName: "Coordinar",
+			Handler:    _ManejoComunicacion_Coordinar_Handler,
+		},
+		{
+			MethodName: "Reestructurar",
+			Handler:    _ManejoComunicacion_Reestructurar_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

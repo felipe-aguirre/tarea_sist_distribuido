@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
 	"time"
@@ -79,7 +78,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	fmt.Println(person["Leia"])
 	s := grpc.NewServer()
 	pb.RegisterManejoComunicacionServer(s, &ManejoComunicacionServer{})
 	log.Printf("Sevidor escuchando en puerto %v", lis.Addr())

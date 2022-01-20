@@ -17,7 +17,7 @@ import (
 const (
 	BrokerAddress = "localhost:50050"
 )
-var vector = "None"
+var vector = map[string]string{}
 var ServerIP = "None"
 // AddCity nombre_planeta nombre_ciudad [nuevo_valor]
 // Esto creará una nueva línea en el registro planetario correspondiente.
@@ -69,6 +69,8 @@ func main() {
 				ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 				r, err = c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: "Ahoska Tano"})
 				log.Printf(`Mensaje recibido del Servidor: %s`, r.GetReply())
+				log.Printf("Guardando vector %s asociado al planeta %s", r.GetReply(), respuesta[1])
+				vector[respuesta[1]] = r.GetReply()
 				defer cancel()
 
 			} else {
