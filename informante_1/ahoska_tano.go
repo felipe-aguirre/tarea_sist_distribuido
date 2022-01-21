@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -15,70 +16,125 @@ import (
 
 // IP Del Broker
 const (
-	BrokerAddress = "localhost:50050"
+	BrokerAddress = "localhost:13370"
+	autor = "Ahoska Tano"
 )
-var vector = map[string]string{}
-var ServerIP = "None"
-// AddCity nombre_planeta nombre_ciudad [nuevo_valor]
-// Esto creará una nueva línea en el registro planetario correspondiente.
-// Si dicho planeta aún no posee un archivo de registro planetario debe crearse
-// uno.
-// Este comando puede o no ingresarse con el nuevo valor. En caso de no escribirse uno,
-// debe guardarse esa ciudad con valor 0.
 
-// FORMATO Registro Planetario (1 por planeta)
-// nombre_planeta nombre_ciudad cantidad_soldados_rebeldes
-// Ejemplo:
-// Tatooine Mos_Eisley 5
+var Reset  = "\033[0m"
+var Red    = "\033[31m"
+var Green  = "\033[32m"
+var Yellow = "\033[33m"
+var Blue   = "\033[34m"
+var Purple = "\033[35m"
+var Cyan   = "\033[36m"
+var Gray   = "\033[37m"
+var White  = "\033[97m"
+
+//Vector en el formato
+// { 
+// 	nombrePlaneta: vector
+// }
+var vector = map[string]string{}
+
+
+// Server IP en formato
+// {
+// 	nombrePlaneta: IP
+// }
+var ServerIP = map[string]string{}
+
 
 func main() {
-
+	if runtime.GOOS == "windows" {
+		Reset  = ""
+		Red    = ""
+		Green  = ""
+		Yellow = ""
+		Blue   = ""
+		Purple = ""
+		Cyan   = ""
+		Gray   = ""
+		White  = ""
+	}
 
 		exit := false
 		loop := true
 		for exit != loop {
 			reader := bufio.NewReader(os.Stdin)
-			fmt.Print("Ahoska Tano > ")
+			fmt.Print(Green + autor + " > "+ Reset)
 			text, _ := reader.ReadString('\n')
-			text = strings.Replace(text, "\r\n", "", -1)
+			if runtime.GOOS == "windows" {
+				text = strings.Replace(text, "\r\n", "", -1)
+			} else {
+				text = strings.Replace(text, "\n", "", -1)
+			} 
+			
 			respuesta := strings.Split(text, " ")
+			
+
 			if (respuesta[0] == "AddCity" || respuesta[0] == "UpdateName" || respuesta[0] == "UpdateNumber" || respuesta[0] == "DeleteCity"){
-				// Conexión a Broker
-				conn, err := grpc.Dial(BrokerAddress, grpc.WithInsecure(), grpc.WithBlock())
-				if err != nil {
-					log.Fatalf("did not connect: %v", err)
+				if (respuesta[0] == "AddCity" && len(respuesta) != 4 && len(respuesta) != 3) {
+					fmt.Println(Red + "ERROR: "+ Yellow + "AddCity" + Reset +  " debe tener tener el formato:")
+					fmt.Println("AddCity nombre_planeta nombre_ciudad [nuevo_valor]")
+					fmt.Println("donde "+ Yellow +"[nuevo_valor]"+ Reset +" es opcional")
+
+				} else if (respuesta[0] == "UpdateName" && len(respuesta) != 4 ) {
+					fmt.Println(Red + "ERROR: "+ Yellow + "UpdateName" + Reset +  " debe tener tener el formato:")
+					fmt.Println("UpdateName nombre_planeta nombre_ciudad nuevo_valor")
+
+				} else if (respuesta[0] == "UpdateNumber" && len(respuesta) != 4 ) {
+					fmt.Println(Red + "ERROR: "+ Yellow + "UpdateNumber" + Reset +  " debe tener tener el formato:")
+					fmt.Println("AddCity nombre_planeta nombre_ciudad [nuevo_valor]")
+
+				}else if (respuesta[0] == "DeleteCity" && len(respuesta) != 3 ) {
+					fmt.Println(Red + "ERROR: "+ Yellow + "DeleteCity" + Reset +  " debe tener tener el formato:")
+					fmt.Println("DeleteCity nombre_planeta nombre_ciudad")
+
+				}else {
+					// Conexión a Broker
+					conn, err := grpc.Dial(BrokerAddress, grpc.WithInsecure(), grpc.WithBlock())
+					if err != nil {
+						fmt.Println(Red+"ERROR: No se pudo conectar al broker: %v"+Reset, err)
+						log.Fatalf("")
+					}
+					c := pb.NewManejoComunicacionClient(conn)
+
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+					defer cancel()
+
+					r, _ := c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: autor, Ip : ServerIP[respuesta[1]],Reloj: vector[respuesta[1]]})
+					log.Printf("")
+					fmt.Println("IP recibida del Broker: "+Yellow + r.GetReply() + Reset)
+					fmt.Println("Contactando al servidor " + Yellow + r.GetReply() + Reset)
+					fmt.Println("    con el comando "+Yellow +text + Reset)
+
+					ServerIP[respuesta[1]] = r.GetReply()
+					conn.Close()
+					
+
+					// Conexión al Servidor Fulcrum
+					conn, err = grpc.Dial(ServerIP[respuesta[1]], grpc.WithInsecure(), grpc.WithBlock())
+					if err != nil {
+						fmt.Println(Red+"ERROR: No se pudo conectar al servidor: %v"+Reset, err)
+						log.Fatalf("")
+					}
+					c = pb.NewManejoComunicacionClient(conn)
+
+					ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+					r, _ = c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: autor})
+					fmt.Println("Vector recibido del Servidor: "+ Yellow +  r.GetReply() + Reset)
+					fmt.Println("Guardando vector " + Yellow + r.GetReply() + Reset + " en el planeta " + Yellow + respuesta[1] + Reset)
+					fmt.Println("")
+					vector[respuesta[1]] = r.GetReply()
+					defer cancel()
 				}
-				c := pb.NewManejoComunicacionClient(conn)
-
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-				defer cancel()
-
-				r, err := c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: "Ahoska Tano", Ip : ServerIP,Reloj: vector[respuesta[1]]})
-				log.Printf(`Mensaje recibido del Broker: %s`, r.GetReply())
-				log.Printf("Contactando al servidor %s con el comando '%s'", r.GetReply(), text)
-				ServerIP = r.GetReply()
-				conn.Close()
-				
-
-				// Conexión al Servidor Fulcrum
-				conn, err = grpc.Dial(ServerIP, grpc.WithInsecure(), grpc.WithBlock())
-				if err != nil {
-					log.Fatalf("did not connect: %v", err)
-				}
-				c = pb.NewManejoComunicacionClient(conn)
-
-				ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-				r, err = c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: "Ahoska Tano"})
-				log.Printf(`Mensaje recibido del Servidor: %s`, r.GetReply())
-				log.Printf("Guardando vector %s asociado al planeta %s", r.GetReply(), respuesta[1])
-				vector[respuesta[1]] = r.GetReply()
-				defer cancel()
-
 			} else {
 				if strings.Compare("exit", text) == 0 {
 					exit = true
 				} else {
-					fmt.Println("Comando erroneo, intente con AddCity, UpdateName, UpdateNumber o DeleteCity")
+					fmt.Println(Red + "ERROR: " + Reset + "Comando erroneo.")
+					fmt.Println("Intente con: ")
+					fmt.Println(Yellow + "AddCity" + Reset + ", " + Yellow + "UpdateName" + Reset + ", " + Yellow + "UpdateNumber" + Reset + " o " + Yellow + "DeleteCity" +Reset)
 				}
 			}
 		}

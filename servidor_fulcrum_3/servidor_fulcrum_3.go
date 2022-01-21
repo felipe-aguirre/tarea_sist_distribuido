@@ -11,17 +11,14 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	pb "github.com/felipe-aguirre/tarea_sist_distribuido/protos"
 	"google.golang.org/grpc"
 )
 
 const (
-	BrokerAddress = "localhost:13370"
-	port = ":13371"
-	indiceServidor = 0
-	TIMER = 120
+	port = ":13373"
+	indiceServidor = 2
 )
 
 var Reset  = "\033[0m"
@@ -36,16 +33,13 @@ var White  = "\033[97m"
 
 
 var vector = map[string]string{}
+
 var listaPlanetas = []string{}
 type ManejoComunicacionServer struct {
 	pb.UnimplementedManejoComunicacionServer
 }
-func max(a, b int) int {
-	if a > b {
-			return a
-	}
-	return b
-}
+
+
 func deleter() {
 	dirname := "." + string(filepath.Separator)
       d, err := os.Open(dirname)
@@ -53,8 +47,7 @@ func deleter() {
           fmt.Println(err)
           os.Exit(1)
       }
-      defer d.Close()
-
+      
       files, err := d.Readdir(-1)
       if err != nil {
           fmt.Println(err)
@@ -72,6 +65,7 @@ func deleter() {
               }
           }
       }
+			d.Close()
 }
 
 func (s *ManejoComunicacionServer) ConsultarReloj(ctx context.Context, in *pb.RelojRequest) (*pb.RelojReply, error) {
@@ -82,6 +76,98 @@ func (s *ManejoComunicacionServer) ConsultarReloj(ctx context.Context, in *pb.Re
 		vectorDelPlaneta = "0 0 0"
 	}
 	return &pb.RelojReply{Reply: vectorDelPlaneta}, nil
+}
+
+func (s *ManejoComunicacionServer) Reestructurar(ctx context.Context, 
+	in *pb.ReestructuracionRequest) (*pb.ReestructuracionReply, error) {
+		fmt.Println(Red + "=== INICIO MERGE ===" + Reset)
+		fmt.Println("Se recibió nueva data desde Fulcrum 1:")
+		planetas :=in.GetPlanetas()
+		texts := in.GetRegistrotxt()
+		vectores := in.GetVectores()
+		fmt.Println("Planetas: " + Yellow + planetas + Reset)
+		fmt.Println("Logs: " + Yellow + texts + Reset)
+		fmt.Println("Vectores: " + Yellow + vectores + Reset)
+		fmt.Println("Borrando data actual . . .")
+		deleter()
+		
+		fmt.Println("Data Borrada")
+		listaPlanetasRecibida := strings.Split(planetas, ";")
+		if len(listaPlanetasRecibida) == 1 {
+			if strings.Compare(listaPlanetasRecibida[0], "") == 0{
+				listaPlanetasRecibida = []string{}
+			}
+		}
+		listaTexts := strings.Split(texts, ";")
+		if len(listaTexts) == 1 {
+			if strings.Compare(listaTexts[0], "") == 0{
+				listaTexts = []string{}
+			}
+		}
+		listaVectores := strings.Split(vectores, ";")
+		if len(listaVectores) == 1 {
+			if strings.Compare(listaVectores[0], "") == 0{
+				listaVectores = []string{}
+			}
+		}
+		vector = map[string]string{}
+		fmt.Println("Escribiendo data nueva")
+		for index, planeta := range listaPlanetasRecibida {
+		fmt.Println("Planeta "+Yellow + planeta + Reset)
+			listaTextsPlaneta := strings.Split(listaTexts[index], ",")
+			file, _ := os.OpenFile("planeta_"+planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
+			if !(len(listaTextsPlaneta) == 1 && listaTextsPlaneta[0] == "-") {
+				for _, elem := range listaTextsPlaneta {
+					file.Write([]byte(elem + "\n"))
+				}
+			}
+			
+			file.Close()
+			vector[planeta] = listaVectores[index]
+		}
+		
+	fmt.Println(Red + "=== FIN MERGE ===" + Reset)
+	fmt.Println("")
+	return &pb.ReestructuracionReply{Reply: "Recibido"}, nil
+}
+func (s *ManejoComunicacionServer) Coordinar(ctx context.Context, 
+	in *pb.CoordinacionRequest) (*pb.CoordinacionReply, error) {
+		// Planetas del servidor X
+		// Ejemplo: "planeta1,planeta2,planetae"
+
+		// Logs de cada planeta concatenado con ; del servidor X
+		// Ejemplo: "logp11,logp12,logp13;logp21,logp22"
+
+		// Relojes de vector de cada planeta
+		// Ejemplo: "RelojPlaneta1, RelojPlaneta2,RelojPlaneta3"
+		// Cada RelojPlaneta tiene el formato a b c
+
+  // Paso 1: Recolectar lista planetas
+	listaPlanetasSTR := strings.Join(listaPlanetas, ";")
+
+	// Paso 2: Obtener txts de cada planeta
+	listaLogs := []string{}
+	for _, planeta := range listaPlanetas {
+		logsDelPlaneta := []string{}
+		fileCheck, _ := os.Open("planeta_" + planeta + ".log")
+		// Leer el archivo y pasarlo a array
+		scannerCheck := bufio.NewScanner(fileCheck)
+		for scannerCheck.Scan() {
+			logsDelPlaneta = append(logsDelPlaneta,scannerCheck.Text())
+		}
+		logsDelPlanetaSTR := strings.Join(logsDelPlaneta, ",")
+		listaLogs = append(listaLogs, logsDelPlanetaSTR)
+		fileCheck.Close()
+	}
+	listaLogsSTR := strings.Join(listaLogs, ";")
+	
+	//Paso 3: Obtener los vectores de cada planeta
+	listaVectores := []string{}
+	for _, planeta := range listaPlanetas {
+		listaVectores = append(listaVectores, vector[planeta])
+	}
+	listaVectoresSTR := strings.Join(listaVectores, ";")
+	return &pb.CoordinacionReply{Planetas: listaPlanetasSTR, Logs: listaLogsSTR, Vector: listaVectoresSTR}, nil
 }
 
 
@@ -464,366 +550,8 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 	return &pb.MessageReply{Reply: vector[respuesta[1]]}, nil
 }
 
-func aplicarCambiosRecibidos(planetas string, logs string, vectores string) {
-	fmt.Println("Iniciando aplicación de cambios")
-	listaPlanetasRecibida := strings.Split(planetas, ";")
-	if len(listaPlanetasRecibida) == 1 {
-		if strings.Compare(listaPlanetasRecibida[0], "") == 0{
-			listaPlanetasRecibida = []string{}
-		}
-	}
-	listaLogs := strings.Split(logs, ";")
-	if len(listaLogs) == 1 {
-		if strings.Compare(listaLogs[0], "") == 0{
-			listaLogs = []string{}
-		}
-	}
-	listaVectores := strings.Split(vectores, ";")
-	if len(listaVectores) == 1 {
-		if strings.Compare(listaVectores[0], "") == 0{
-			listaVectores = []string{}
-		}
-	}
-	
 
 
-	for index, planeta := range listaPlanetasRecibida {
-		fmt.Println("Edición de planeta: " + Yellow + planeta + Reset)
-		// Paso 1: Intentar abrir el archivo, si no existe crear uno nuevo
-		f, err := os.Open("planeta_" + planeta + ".txt")
-		// En caso de que no exista, se crea y se agrega la linea necesaria
-		if err != nil {
-			fmt.Println("  El planeta " + Yellow + planeta + Reset + " no se encuentra en Fulcrum 1")
-			fmt.Println("  Creando archivo .txt nuevo.")
-			f.Close()
-			f, _ := os.OpenFile("planeta_" + planeta + ".txt", os.O_CREATE|os.O_WRONLY, 0660)
-			f.Close()
-			listaPlanetas = append(listaPlanetas, planeta)		
-			
-		} 
-		// Archivo existe - continua a aplicación de log
-		
-		// Paso 2: Aplicar el log correspondiente al archivo
-		if listaLogs[index] != "-" {
-			log.Printf("  Log del planeta: " + Yellow + listaLogs[index] + Reset)
-			listaLogsPlaneta := strings.Split(listaLogs[index], ",")
-			for _, elem := range listaLogsPlaneta {
-				
-				logActual:= strings.Split(elem, ",")
-				
-				for _, comando := range logActual {
-					log.Printf("  Comando Aplicado: " + Yellow + comando + Reset)
-					respuesta := strings.Split(comando, " ")
-					nombre_planeta := respuesta[1]
-					nombre_ciudad := respuesta[2]
-					nuevo_valor:= ""
-					if len(respuesta) == 4 {
-						nuevo_valor= respuesta[3]
-					}
-					
-
-					//Caso AddCity
-					if strings.Compare("AddCity", respuesta[0]) == 0 {
-						f, _ := os.Open("planeta_" + nombre_planeta + ".txt")
-						scanner := bufio.NewScanner(f)
-						var textoCompleto []string
-						for scanner.Scan() {
-							linea_a_escribir := (scanner.Text())
-							linea_leida := strings.Split(scanner.Text(), " ")
-							// Si la linea actual no corresponde a la ciudad actual, se
-							// agrega al buffer textoCompleto
-							if strings.Compare(nombre_ciudad, linea_leida[1]) != 0 {
-								textoCompleto = append(textoCompleto, linea_a_escribir)
-							}
-						}
-						linea_a_escribir := nombre_planeta + " " + nombre_ciudad + " " + nuevo_valor
-						textoCompleto = append(textoCompleto, linea_a_escribir)
-						f.Close()
-						file, _ := os.OpenFile("planeta_"+nombre_planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
-						for _, elem := range textoCompleto {
-							file.Write([]byte(elem + "\n"))
-						}
-						file.Close()
-
-
-					
-					// Caso UpdateName
-					} else if strings.Compare("UpdateName", respuesta[0]) == 0 {
-						//Revisión si valor nuevo es una ciudad existente. De ser así se cancela
-						//la operación
-						ciudadExiste := false
-						fileCheck, _ := os.Open("planeta_" + nombre_planeta + ".txt")
-						// Leer el archivo y pasarlo a array
-						scannerCheck := bufio.NewScanner(fileCheck)
-						for scannerCheck.Scan() {
-							linea_leida := strings.Split(scannerCheck.Text(), " ")
-							// Si la linea existe
-							if strings.Compare(nuevo_valor, linea_leida[1]) == 0 {
-								ciudadExiste = true
-							}
-						}
-						fileCheck.Close()
-						if (!ciudadExiste) {
-							f, _ := os.Open("planeta_" + nombre_planeta + ".txt")
-							// Leer el archivo y pasarlo a array
-							scanner := bufio.NewScanner(f)
-							var textoCompleto []string
-							for scanner.Scan() {
-								linea_a_escribir := (scanner.Text())
-								linea_leida := strings.Split(scanner.Text(), " ")
-								// Si la linea existe
-								if strings.Compare(nombre_ciudad, linea_leida[1]) == 0 {
-									linea_a_escribir = nombre_planeta + " " + nuevo_valor + " " + linea_leida[2]
-								}
-								textoCompleto = append(textoCompleto, linea_a_escribir)
-							}
-							f.Close()
-							file, _ := os.OpenFile("planeta_"+nombre_planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
-							for _, elem := range textoCompleto {
-								file.Write([]byte(elem + "\n"))
-							}
-							file.Close()
-						}
-					} else if strings.Compare("UpdateNumber", respuesta[0]) == 0 {
-						f, _ := os.Open("planeta_" + nombre_planeta + ".txt")
-						// Leer el archivo y pasarlo a array
-						scanner := bufio.NewScanner(f)
-						var textoCompleto []string
-						for scanner.Scan() {
-							linea_a_escribir := (scanner.Text())
-							linea_leida := strings.Split(scanner.Text(), " ")
-							// Si la linea existe
-							if strings.Compare(nombre_ciudad, linea_leida[1]) == 0 {
-								linea_a_escribir = nombre_planeta + " " + nombre_ciudad + " " + nuevo_valor
-							}
-							textoCompleto = append(textoCompleto, linea_a_escribir)
-						}
-						f.Close()
-						file, _ := os.OpenFile("planeta_"+nombre_planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
-						for _, elem := range textoCompleto {
-							file.Write([]byte(elem + "\n"))
-						}
-						file.Close()
-					} else if strings.Compare("DeleteCity", respuesta[0]) == 0 {
-						f, err := os.Open("planeta_" + nombre_planeta + ".txt")
-						if err != nil {
-							log.Fatalf("Linea 135 - Hubo un error al abrir el archivo: %v", err)
-						}
-						// Leer el archivo y pasarlo a array
-						scanner := bufio.NewScanner(f)
-						var textoCompleto []string
-						for scanner.Scan() {
-							linea_a_escribir := (scanner.Text())
-							linea_leida := strings.Split(scanner.Text(), " ")
-							// Si la linea existe
-							if strings.Compare(nombre_ciudad, linea_leida[1]) != 0 {
-								textoCompleto = append(textoCompleto, linea_a_escribir)
-							}
-						}
-						f.Close()
-						os.Remove("planeta_" + nombre_planeta + ".txt")
-						file, _ := os.OpenFile("planeta_"+nombre_planeta+".txt", os.O_CREATE|os.O_WRONLY, 0660)
-						if len(textoCompleto) != 0{
-							for _, elem := range textoCompleto {
-								file.Write([]byte(elem + "\n"))
-							}			
-						}
-						file.Close()
-						
-					}
-				}
-			//Paso 3: Coordinar vectores dejando los valores más altos
-			}
-		} else {
-			fmt.Println("  No hay comandos que aplicar.")
-		}
-
-		
-		fmt.Println("  Revisión de vector: ")
-		// listaVectores = [1 1 0; 1 0 1; 2 0 1  etc] ya separados como array de strings
-		// Comparar vector de fulcrum 1 con el entregado
-
-		// Vector en blanco
-		vector0 := 0
-		vector1 := 0
-		vector2 := 0
-		vectorFulcrum1:= "0 0 0"
-		// Vector de fulcrum 1:
-		if _, ok := vector[planeta]; ok {
-			// Vector si existe en el planeta
-			vectorFulcrum1 = vector[planeta]
-			fmt.Println("  Vector actual del planeta en Fulcrum 1: " + Yellow + vectorFulcrum1 + Reset)
-			vectorFulcrum1List := strings.Split(vectorFulcrum1, " ")
-			vector0, _ = strconv.Atoi(vectorFulcrum1List[0])
-			vector1, _ = strconv.Atoi(vectorFulcrum1List[1])
-			vector2, _ = strconv.Atoi(vectorFulcrum1List[2])
-		} else {
-			fmt.Println("  No existe vector del planeta en Fulcrum 1")
-		
-		}
-		
-		
-		// Vector nuevo
-		vectorNuevo := listaVectores[index]
-		fmt.Println("  Vector recibido : " + Yellow + vectorNuevo + Reset)
-		vectorNuevoFulcrum1List := strings.Split(vectorNuevo, " ")
-		vectorNuevo0, _ := strconv.Atoi(vectorNuevoFulcrum1List[0])
-		vectorNuevo1, _ := strconv.Atoi(vectorNuevoFulcrum1List[1])
-		vectorNuevo2, _ := strconv.Atoi(vectorNuevoFulcrum1List[2])
-
-		vectorFinal := []string{strconv.Itoa(max(vector0, vectorNuevo0)),
-			strconv.Itoa(max(vector1, vectorNuevo1)), 
-			strconv.Itoa(max(vector2, vectorNuevo2))}
-		
-		fmt.Println("Vector nuevo: "+ Yellow + vectorFulcrum1 + Reset + " > " + Yellow + strings.Join(vectorFinal, " ") + Reset)
-		vector[planeta] = strings.Join(vectorFinal, " ")
-		
-
-	}
-	fmt.Println("Fin aplicación de cambios")
-	fmt.Println("")
-}
-func ejecutarCoordinacion() {
-	for range time.Tick(time.Second * TIMER) {
-		fmt.Println(Red + "=== INICIO MERGE ===" + Reset)
-
-		// Solicitar archivos, se recibe listado de:
-
-		// Planetas del servidor X
-		// Ejemplo: "planeta1,planeta2,planetae"
-
-		// Logs de cada planeta concatenado con ; del servidor X
-		// Ejemplo: "logp11,logp12,logp13;logp21,logp22"
-
-		// Relojes de vector de cada planeta
-		// Ejemplo: "RelojPlaneta1, RelojPlaneta2,RelojPlaneta3"
-		// Cada RelojPlaneta tiene el formato a b c
-
-		// Conexión a Fulcrum 2
-		fmt.Println("Solicitando información a " + Yellow + "Fulcrum 2" + Reset)
-		conn, err := grpc.Dial("localhost:13372", grpc.WithInsecure(), grpc.WithBlock())
-		if err != nil {
-			log.Fatalf("did not connect: %v", err)
-		}
-		c := pb.NewManejoComunicacionClient(conn)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		r, _ := c.Coordinar(ctx, &pb.CoordinacionRequest{Request: "Coordinemos"})
-		fmt.Println("Se recibió respuesta de "+ Yellow + "Fulcrum 2" + Reset)
-		planetaFulcrum2 :=r.GetPlanetas()
-		logFulcrum2 := r.GetLogs()
-		vectorFulcrum2 := r.GetVector()
-		cancel()
-		fmt.Println("Planetas: " + Yellow +planetaFulcrum2 + Reset)
-		fmt.Println("Logs: " + Yellow + logFulcrum2 + Reset)
-		fmt.Println("Vectores: " + Yellow + vectorFulcrum2 + Reset)
-		aplicarCambiosRecibidos(planetaFulcrum2, logFulcrum2, vectorFulcrum2)
-		fmt.Println("")
-		
-		
-		// Conexión a Fulcrum 3
-		fmt.Println("Solicitando información a " + Yellow + "Fulcrum 3" + Reset)
-		conn, err = grpc.Dial("localhost:13373", grpc.WithInsecure(), grpc.WithBlock())
-		if err != nil {
-			log.Fatalf("did not connect: %v", err)
-		}
-		c = pb.NewManejoComunicacionClient(conn)
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		r, _ = c.Coordinar(ctx, &pb.CoordinacionRequest{Request: "Coordinemos"})
-		fmt.Println("Se recibió respuesta de "+ Yellow + "Fulcrum 3" + Reset)
-		planetaFulcrum3 :=r.GetPlanetas()
-		logFulcrum3 := r.GetLogs()
-		vectorFulcrum3 := r.GetVector()
-		cancel()
-		fmt.Println("Planetas: " + Yellow +planetaFulcrum3 + Reset)
-		fmt.Println("Logs: " + Yellow + logFulcrum3 + Reset)
-		fmt.Println("Vectores: " + Yellow + vectorFulcrum3 + Reset)
-		aplicarCambiosRecibidos(planetaFulcrum3, logFulcrum3, vectorFulcrum3)
-		fmt.Println("")
-
-
-		// Borrar los logs del servidor fulcrum 1
-		fmt.Println("Eliminando logs del servidor")
-		for _, planeta := range listaPlanetas {
-			os.Remove("planeta_" + planeta + ".log")
-		}
-		
-		// Preparando DATA para enviar a fulcrum 2 y 3
-
-		// Paso 1: Recolectar lista planetas
-		listaPlanetasSTR := strings.Join(listaPlanetas, ";")
-
-		// Paso 2: Obtener TXT de cada planeta
-		listaTxt := []string{}
-		for _, planeta := range listaPlanetas {
-			logsDelPlaneta := []string{}
-			fileCheck, _ := os.Open("planeta_" + planeta + ".txt")
-			// Leer el archivo y pasarlo a array
-			scannerCheck := bufio.NewScanner(fileCheck)
-			for scannerCheck.Scan() {
-				//Cada linea
-				logsDelPlaneta = append(logsDelPlaneta,scannerCheck.Text())
-			}
-			if len(logsDelPlaneta) == 0 {
-				logsDelPlaneta = append(logsDelPlaneta,"-")
-			}
-			logsDelPlanetaSTR := strings.Join(logsDelPlaneta, ",")
-			listaTxt = append(listaTxt, logsDelPlanetaSTR)
-		}
-		listaTxtSTR := strings.Join(listaTxt, ";")
-		
-		//Paso 3: Obtener los vectores de cada planeta
-		listaVectores := []string{}
-		for _, planeta := range listaPlanetas {
-			listaVectores = append(listaVectores, vector[planeta])
-		}
-		listaVectoresSTR := strings.Join(listaVectores, ";")
-
-
-		// Ordenar a los servidores Fulcrum2 y 3 acatar los nuevos cambios
-		//Fulcrum 2
-		fmt.Println("Enviando data a " + Yellow + "Fulcrum 2" + Reset)
-		conn, err = grpc.Dial("localhost:13372", grpc.WithInsecure(), grpc.WithBlock())
-		if err != nil {
-			log.Fatalf("did not connect: %v", err)
-		}
-		c = pb.NewManejoComunicacionClient(conn)
-
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		rReestructuracion, _ := c.Reestructurar(ctx, &pb.ReestructuracionRequest{Planetas: listaPlanetasSTR, Vectores: listaVectoresSTR, Registrotxt: listaTxtSTR})
-		fmt.Println("Rrespuesta de Fulcrum 2: " + Yellow + rReestructuracion.GetReply() + Reset)
-		cancel()
-
-		
-		//Fulcrum 3
-		fmt.Println("Enviando data a " + Yellow + "Fulcrum 3" + Reset)
-		conn, err = grpc.Dial("localhost:13373", grpc.WithInsecure(), grpc.WithBlock())
-		if err != nil {
-			log.Fatalf("did not connect: %v", err)
-		}
-		c = pb.NewManejoComunicacionClient(conn)
-
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		rReestructuracion, _ = c.Reestructurar(ctx, &pb.ReestructuracionRequest{Planetas: listaPlanetasSTR, Vectores: listaVectoresSTR, Registrotxt: listaTxtSTR})
-		fmt.Println("Rrespuesta de Fulcrum 2: " + Yellow + rReestructuracion.GetReply() + Reset)
-		cancel()
-
-
-		// Avisarle al broker que reinicie las IPs
-		conn, err = grpc.Dial(BrokerAddress, grpc.WithInsecure(), grpc.WithBlock())
-		if err != nil {
-			log.Fatalf("did not connect: %v", err)
-		}
-		c = pb.NewManejoComunicacionClient(conn)
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		respBroker, _ := c.Comunicar(ctx, &pb.MessageRequest{Request: "Eliminar", Autor: "FulcrumDELETE"})
-		fmt.Println("Respuesta broker: " + Yellow + respBroker.GetReply() + Reset)
-		cancel()
-		fmt.Println(Red + "=== FIN MERGE ===" + Reset)
-		fmt.Println("")
-
-
-	}
-}
 
 func main() {
 	if runtime.GOOS == "windows" {
@@ -838,7 +566,6 @@ func main() {
 		White  = ""
 	}
 	deleter()
-	go ejecutarCoordinacion()
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
