@@ -19,6 +19,8 @@ const (
 	port = ":13370"
 	PLAN = "B"
 	CANTIDAD_SERVIDORES = 3
+	SEMILLA = 1337
+	LOCAL = true
 )
 
 var Reset  = "\033[0m"
@@ -31,15 +33,17 @@ var Cyan   = "\033[36m"
 var Gray   = "\033[37m"
 var White  = "\033[97m"
 
-var servidores = [...]string{"localhost:13371","localhost:13372","localhost:13373"}
+var servidores = [3]string{}
 
+var servidoresLocal = [...]string{"localhost:13371","localhost:13372","localhost:13373"}
+var servidoresDigitalOcean = [...]string{"143.198.172.45:13771", "159.89.231.241:13372", "159.223.157.5:13373"}
 var person = map[string]string{
 	"Ahoska Tano": "None",
 	"Almirante Thrawn": "None",
 	"Leia": "None",
 }
 
-var seed = rand.NewSource(44)
+var seed = rand.NewSource(SEMILLA)
 var random = rand.New(seed)
 
 type ManejoComunicacionServer struct {
@@ -89,7 +93,7 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 			} else{
 				// Ya hay IP Guardada - Comparar los relojes
 				// Reconocer que servidor es el actual para identificar el indice
-				fmt.Println("IP Guardada: " + Yellow + in.GetIp() + Reset)
+				fmt.Println("IP de Servidor guardada del usuario: " + Yellow + in.GetIp() + Reset)
 				
 				indice := 0
 				if in.GetIp() == "localhost:13372"{
@@ -97,15 +101,19 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 				} else if in.GetIp() == "localhost:13373" {
 					indice = 2
 				}
+				fmt.Println("")
 				fmt.Println("Indice del vector correspondiente: " + Yellow + strconv.Itoa(indice) + Reset)
 				// Extraer el número del servidor en el reloj de vectores recibido del informante
 				VectorRecibidoInformante := in.GetReloj()
-				fmt.Println("Vector recibido por consulta: " + Yellow + in.GetReloj() + Reset)
+				fmt.Println("Vector recibido del usuario: " + Yellow + in.GetReloj() + Reset)
 				vectorRecibidoInformanteLista := strings.Split(VectorRecibidoInformante, " ")
 				vectorRecibidoInformanteIP, _ := strconv.Atoi(vectorRecibidoInformanteLista[indice])
 
 				// Consultar servidor por servidor y comparar el número con el recibido
+				servidoresValidos := []string{}
+				fmt.Println("")
 				for i := 0; i < CANTIDAD_SERVIDORES; i++ {
+					fmt.Println("Comunicando al servidor " + Yellow + servidores[i] + Reset)
 					conn, err := grpc.Dial(servidores[i], grpc.WithInsecure(), grpc.WithBlock())
 					if err != nil {
 						log.Fatalf("did not connect: %v", err)
@@ -115,19 +123,44 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 					// Envía el nombre del planeta
 					r, _ := c.ConsultarReloj(ctx, &pb.RelojRequest{Request: respuesta[1]})
-					fmt.Println("Vector recibido del servidor " + Yellow + r.GetReply() + Reset)
+					fmt.Println("  Vector recibido del servidor " + Yellow + r.GetReply() + Reset)
 					VectorRecibidoServidor := r.GetReply()
 					vectorRecibidoServidorLista := strings.Split(VectorRecibidoServidor, " ")
 					vectorRecibidoServidorIP, _ := strconv.Atoi(vectorRecibidoServidorLista[indice])
 					cancel()
-					if vectorRecibidoInformanteIP >= vectorRecibidoServidorIP {
+					if vectorRecibidoServidorIP >= vectorRecibidoInformanteIP  {
+						servidoresValidos = append(servidoresValidos, servidores[indice])
 						//El servidor si es válido, retornar la IP correspondiente
-						fmt.Println("El vector es mayor")
-						IP = servidores[indice]	
-						fmt.Println("Asignando IP " + Yellow + IP + Reset)
-						break
+						fmt.Println("  El servidor " + Yellow + servidores[i] + Green + " es válido" + Reset)
+					}else {
+						fmt.Println("  El servidor " + Yellow + servidores[i] + Red + " no es válido" + Reset)
+
+
 					}
+					fmt.Println("")
 				}
+				fmt.Println("Servidores válidos: " + Yellow + strconv.Itoa(len(servidoresValidos)) + Reset)
+					if len(servidoresValidos) == 1 {
+							fmt.Println("Único servidor válido: " + Yellow + servidoresValidos[0] + Reset)
+							IP = servidoresValidos[0]
+							fmt.Println("Derivando al usuario a " + Yellow + servidoresValidos[0] + Reset)
+
+					} else if len(servidoresValidos) == 0 {
+						fmt.Println("No hay IP con vector válido.")
+						fmt.Println("  Se elige una aleatoria.")
+
+						aleatorio:= random.Intn(CANTIDAD_SERVIDORES)
+						IP = servidores[aleatorio]
+						fmt.Println("Servidor: " + Yellow + IP + Reset)
+						fmt.Println("    al usuario " + Yellow +in.GetAutor() + Reset + "\n")
+					} else {
+						fmt.Println("Se elige una IP aleatoria dentro de las válidas.")
+
+						aleatorio:= random.Intn(len(servidoresValidos))
+						IP = servidoresValidos[aleatorio]
+						fmt.Println("Servidor: " + Yellow + IP + Reset)
+						fmt.Println("    al usuario " + Yellow +in.GetAutor() + Reset + "\n")
+					}
 			}
 	
 		}
@@ -162,6 +195,11 @@ func (s *ManejoComunicacionServer) Comunicar(ctx context.Context, in *pb.Message
 }
 
 func main() {
+	if LOCAL {
+		servidores = servidoresLocal
+	} else {
+		servidores = servidoresDigitalOcean
+	}
 	if runtime.GOOS == "windows" {
 		Reset  = ""
 		Red    = ""

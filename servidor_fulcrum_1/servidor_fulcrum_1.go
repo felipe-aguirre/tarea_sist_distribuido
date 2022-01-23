@@ -18,11 +18,15 @@ import (
 )
 
 const (
-	BrokerAddress = "localhost:13370"
 	port = ":13371"
 	indiceServidor = 0
 	TIMER = 120
+	LOCAL = true
 )
+
+var BrokerAddress = ""
+var Fulcrum2 = ""
+var Fulcrum3 = ""
 
 var Reset  = "\033[0m"
 var Red    = "\033[31m"
@@ -701,7 +705,7 @@ func ejecutarCoordinacion() {
 
 		// Conexión a Fulcrum 2
 		fmt.Println("Solicitando información a " + Yellow + "Fulcrum 2" + Reset)
-		conn, err := grpc.Dial("localhost:13372", grpc.WithInsecure(), grpc.WithBlock())
+		conn, err := grpc.Dial(Fulcrum2, grpc.WithInsecure(), grpc.WithBlock())
 		if err != nil {
 			log.Fatalf("did not connect: %v", err)
 		}
@@ -722,7 +726,7 @@ func ejecutarCoordinacion() {
 		
 		// Conexión a Fulcrum 3
 		fmt.Println("Solicitando información a " + Yellow + "Fulcrum 3" + Reset)
-		conn, err = grpc.Dial("localhost:13373", grpc.WithInsecure(), grpc.WithBlock())
+		conn, err = grpc.Dial(Fulcrum3, grpc.WithInsecure(), grpc.WithBlock())
 		if err != nil {
 			log.Fatalf("did not connect: %v", err)
 		}
@@ -782,7 +786,7 @@ func ejecutarCoordinacion() {
 		// Ordenar a los servidores Fulcrum2 y 3 acatar los nuevos cambios
 		//Fulcrum 2
 		fmt.Println("Enviando data a " + Yellow + "Fulcrum 2" + Reset)
-		conn, err = grpc.Dial("localhost:13372", grpc.WithInsecure(), grpc.WithBlock())
+		conn, err = grpc.Dial(Fulcrum2, grpc.WithInsecure(), grpc.WithBlock())
 		if err != nil {
 			log.Fatalf("did not connect: %v", err)
 		}
@@ -790,13 +794,13 @@ func ejecutarCoordinacion() {
 
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 		rReestructuracion, _ := c.Reestructurar(ctx, &pb.ReestructuracionRequest{Planetas: listaPlanetasSTR, Vectores: listaVectoresSTR, Registrotxt: listaTxtSTR})
-		fmt.Println("Rrespuesta de Fulcrum 2: " + Yellow + rReestructuracion.GetReply() + Reset)
+		fmt.Println("Respuesta de Fulcrum 2: " + Yellow + rReestructuracion.GetReply() + Reset)
 		cancel()
 
 		
 		//Fulcrum 3
 		fmt.Println("Enviando data a " + Yellow + "Fulcrum 3" + Reset)
-		conn, err = grpc.Dial("localhost:13373", grpc.WithInsecure(), grpc.WithBlock())
+		conn, err = grpc.Dial(Fulcrum3, grpc.WithInsecure(), grpc.WithBlock())
 		if err != nil {
 			log.Fatalf("did not connect: %v", err)
 		}
@@ -804,11 +808,13 @@ func ejecutarCoordinacion() {
 
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 		rReestructuracion, _ = c.Reestructurar(ctx, &pb.ReestructuracionRequest{Planetas: listaPlanetasSTR, Vectores: listaVectoresSTR, Registrotxt: listaTxtSTR})
-		fmt.Println("Rrespuesta de Fulcrum 2: " + Yellow + rReestructuracion.GetReply() + Reset)
+		fmt.Println("Respuesta de Fulcrum 2: " + Yellow + rReestructuracion.GetReply() + Reset)
 		cancel()
 
 
 		// Avisarle al broker que reinicie las IPs
+		fmt.Println("Contactando a " + Yellow + "Broker" + Reset)
+
 		conn, err = grpc.Dial(BrokerAddress, grpc.WithInsecure(), grpc.WithBlock())
 		if err != nil {
 			log.Fatalf("did not connect: %v", err)
@@ -826,6 +832,15 @@ func ejecutarCoordinacion() {
 }
 
 func main() {
+	if LOCAL {
+		BrokerAddress = "localhost:13370"
+		Fulcrum2 = "localhost:13372"
+		Fulcrum3 = "localhost:13373"
+	} else {
+		BrokerAddress = "137.184.61.128:13370"
+		Fulcrum2 = "159.89.231.241:13372"
+		Fulcrum3 = "159.223.157.5:13373"
+	}
 	if runtime.GOOS == "windows" {
 		Reset  = ""
 		Red    = ""

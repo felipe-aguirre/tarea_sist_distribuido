@@ -16,7 +16,7 @@ import (
 
 // IP Del Broker
 const (
-	BrokerAddress = "localhost:13370"
+	LOCAL = true
 	autor = "Ahoska Tano"
 )
 
@@ -29,6 +29,7 @@ var Purple = "\033[35m"
 var Cyan   = "\033[36m"
 var Gray   = "\033[37m"
 var White  = "\033[97m"
+var BrokerAddress = ""
 
 //Vector en el formato
 // { 
@@ -45,6 +46,11 @@ var ServerIP = map[string]string{}
 
 
 func main() {
+	if LOCAL {
+		BrokerAddress = "localhost:13370"
+	} else {
+		BrokerAddress = "137.184.61.128:13370"
+	}
 	if runtime.GOOS == "windows" {
 		Reset  = ""
 		Red    = ""

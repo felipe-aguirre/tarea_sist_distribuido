@@ -156,6 +156,9 @@ func (s *ManejoComunicacionServer) Coordinar(ctx context.Context,
 			logsDelPlaneta = append(logsDelPlaneta,scannerCheck.Text())
 		}
 		logsDelPlanetaSTR := strings.Join(logsDelPlaneta, ",")
+		if len(logsDelPlanetaSTR) == 0 {
+			logsDelPlanetaSTR = "-"
+		}
 		listaLogs = append(listaLogs, logsDelPlanetaSTR)
 		fileCheck.Close()
 	}
