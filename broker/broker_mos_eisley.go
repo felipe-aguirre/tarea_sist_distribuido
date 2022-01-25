@@ -20,7 +20,7 @@ const (
 	PLAN = "B"
 	CANTIDAD_SERVIDORES = 3
 	SEMILLA = 1337
-	LOCAL = true
+	LOCAL = false
 )
 
 var Reset  = "\033[0m"

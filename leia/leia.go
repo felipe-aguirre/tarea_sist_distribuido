@@ -26,7 +26,7 @@ var White  = "\033[97m"
 
 // IP Del Broker
 const (
-	LOCAL = true
+	LOCAL = false
 )
 var BrokerAddress = ""
 

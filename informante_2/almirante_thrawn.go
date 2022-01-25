@@ -16,7 +16,7 @@ import (
 
 // IP Del Broker
 const (
-	LOCAL = true
+	LOCAL = false
 	autor = "Almirante Thrawn"
 )
 

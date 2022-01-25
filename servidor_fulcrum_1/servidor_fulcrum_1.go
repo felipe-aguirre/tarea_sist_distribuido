@@ -21,7 +21,7 @@ const (
 	port = ":13371"
 	indiceServidor = 0
 	TIMER = 120
-	LOCAL = true
+	LOCAL = false
 )
 
 var BrokerAddress = ""
