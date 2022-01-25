@@ -95,7 +95,7 @@ func main() {
 
 					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 					defer cancel()
-					r, _ := c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: "Leia"})
+					r, _ := c.Comunicar(ctx, &pb.MessageRequest{Request: text, Autor: "Leia", Ip : ServerIP[respuesta[1]],Reloj: vector[respuesta[1]]})
 					
 					respuestaBroker := r.GetReply()
 					linea_leida := strings.Split(respuestaBroker, ",")
@@ -107,12 +107,13 @@ func main() {
 						fmt.Println("Vector recibido: " + Yellow + RespuestaVector + Reset)
 						fmt.Println("IP de servidor usada: " + Yellow + IPrecibida + Reset)
 						fmt.Println("")
-						vector[respuesta[1]] = RespuestaVector
-						ServerIP[respuesta[1]] = IPrecibida
+						
 					} else {
 						fmt.Println("La ciudad " + Yellow +  respuesta[2] + Reset + " del planeta " + Yellow + respuesta[1] + Reset + " no se encuentra en el servidor.")
 						fmt.Println("IP de servidor usada: " + Yellow + IPrecibida + Reset)
 					}
+					vector[respuesta[1]] = RespuestaVector
+					ServerIP[respuesta[1]] = IPrecibida
 					
 					conn.Close()
 				}
